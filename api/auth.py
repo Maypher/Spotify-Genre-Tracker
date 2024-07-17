@@ -44,7 +44,7 @@ class Authenticator:
     def __init__(self, refresh_token: str | None = None) -> None:
         """
         If `refresh_token` is passed the Authenticator will try to get an access token without the need of having to login.
-        Otherwise it will prompt the user for login.
+        Otherwise, `request_auth_code` and `request_access_token` must be called in that order.
         """
         client_secret = environ.get("client_secret")
 
@@ -57,9 +57,6 @@ class Authenticator:
 
         if self.refresh_token:
             self.refresh_tokens()
-        else:
-            redirected_url = self.request_auth_code()
-            self.request_access_token(redirected_url)
 
     def request_access_token(self, redirected_url: str):
         """
@@ -113,7 +110,7 @@ class Authenticator:
             self.expiry_time = expiry_time
             self.refresh_token = refresh_token
 
-    def request_auth_code(self) -> str:
+    def request_auth_code(self):
         """
         Requests the auth code necessary to get the access and refresh tokens. 
         This must be called before `request_access_token` to get the redirect uri.
@@ -133,8 +130,6 @@ class Authenticator:
         
         url = Authenticator.AUTH_URL + urllib.parse.urlencode(params)
         webbrowser.open(url)
-
-        return input("Insert redirected url: ")
 
     def refresh_tokens(self):
         """
