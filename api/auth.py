@@ -74,7 +74,7 @@ class Authenticator:
         if error:
             raise PermissionError(f"Login failed: {error}")
         
-        auth_code = params.get("code")[0]
+        auth_code = params.get("code")[0] if params else None
 
         if not auth_code:
             raise KeyError("No authentication code found in the url")
