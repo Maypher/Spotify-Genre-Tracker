@@ -133,10 +133,6 @@ class DatabaseManager:
                 # Get the index from the filename
                 file_index = int(file_index_re.search(migration_file.name).group(0))
 
-                print(migration_version)
-                print(file_index)
-                print(rollback_version)
-
                 # If the rollback files aren't numbered properly then throw an error.
                 if file_index == migration_version:
                    self._apply_migration_file(migration_file)
@@ -170,8 +166,3 @@ class DatabaseManager:
             # Execute any remaining SQL command (in case file doesn't end with a newline)
             if sql_command.strip():
                 self.cursor.execute(sql_command)
-
-
-
-with DatabaseManager() as db:
-    db.migration_upgrade()
