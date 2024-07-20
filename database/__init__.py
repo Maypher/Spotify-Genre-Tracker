@@ -4,6 +4,11 @@ from rich.console import Console
 from rich.style import Style
 import re
 from pathlib import Path
+from typing import Tuple, List
+
+
+GenreEntry = Tuple[int, str, int]
+"""Represents a genre in the database. Values are as follows: `(id, name, listen time in seconds)`"""
 
 class DatabaseManager:
     """
@@ -19,11 +24,14 @@ class DatabaseManager:
     ERROR_STYLE = Style(color="red")
     WARN_STYLE = Style(color="yellow")
 
+    @property
+    def database_version(self):
+        return self.cursor.execute("PRAGMA user_version").fetchone()[0]
+
     def __init__(self, database_location: str | None = None) -> None:
         self.database_location = Path(database_location) if database_location else Path(__file__).parent.joinpath("./database.db")
         self.migration_dir = Path(__file__).parent.joinpath("./migrations/")
-        self.console = Console()
-        
+        self.console = Console()  
 
     def __enter__(self):
         if not self.database_location.exists():
@@ -42,10 +50,6 @@ class DatabaseManager:
 
         return True
 
-    @property
-    def database_version(self):
-        return self.cursor.execute("PRAGMA user_version").fetchone()[0]
-    
     def update_database_version(self, version: int):
         self.cursor.execute(f"PRAGMA user_version = {version}")
 
@@ -166,3 +170,35 @@ class DatabaseManager:
             # Execute any remaining SQL command (in case file doesn't end with a newline)
             if sql_command.strip():
                 self.cursor.execute(sql_command)
+
+    def get_genre_count(self) -> int:
+        return self.cursor.execute("SELECT COUNT(*) FROM GENRE").fetchone()[0]
+
+    def get_genre_by_id(self, id: int) -> GenreEntry:
+        return self.cursor.execute(f"SELECT * FROM Genre WHERE id = {id}").fetchone()
+    
+    def get_genres_by_name(self, name: str) -> List[GenreEntry]:
+        """
+        Gets all the genres that match the given name.
+        """
+        return self.cursor.execute(f"SELECT * FROM Genre WHERE name LIKE '%{name}%' ORDER BY name").fetchall()
+    
+    def get_top_listens(self) -> List[GenreEntry]:
+        return self.cursor.execute(f"SELECT * FROM Genre WHERE listened_time > 0 ORDER BY listened_time DESC").fetchall()
+
+    def get_random_genre(self) -> GenreEntry:
+        return self.cursor.execute("SELECT * FROM Genre ORDER BY RANDOM() LIMIT 1").fetchone()
+    
+    def increment_genre_listen_time(self, genre_id: int, increment_by: int):
+        """
+        Increment a genre's listened by the given amount of seconds.
+        """
+        self.cursor.execute(f"UPDATE Genre SET listened_time = listened_time + {increment_by} WHERE id = {genre_id}")
+        self.connection.commit()
+
+    def create_new_genre(self, name: str):
+        try:
+            self.cursor.execute(f'INSERT INTO Genre (name) VALUES ("{name}")')
+            self.connection.commit()
+        except sqlite3.IntegrityError:
+            raise sqlite3.IntegrityError(f"Genre with name '{name}' already exists.")
