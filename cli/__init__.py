@@ -1,4 +1,5 @@
-from api.client import Client
+from api.client import Client, CurrentTrack
+from database import DatabaseManager
 
 from rich.console import Console
 from rich.prompt import Prompt, IntPrompt
@@ -14,9 +15,12 @@ class Program:
 
     console: Console
     backend: Client
+    finish: bool
 
     def __init__(self, refresh_token: str | None = None) -> None:
         self.console = Console()
+        self.finish = False
+
         if refresh_token:
             self.backend = Client(refresh_token)
         else:
@@ -25,7 +29,7 @@ class Program:
     def run(self):
         self.print_spotify_logo()
         
-        while True:
+        while not self.finish:
             # If a refresh token exists it means the user is authenticated
             if self.backend.authenticator.refresh_token:
                 # Print full options
@@ -67,7 +71,7 @@ class Program:
                     self.console.print("Authentication successful", style=Program.SUCCESS_STYLE)
             case 2:
                 self.console.print("Goodbye!")
-                sys.exit()
+                self.finish = True
 
     def print_spotify_logo(self):
         self.console.print("""
@@ -108,3 +112,16 @@ class Program:
                            .::-==++++==--:.                           
                    
         """, style="#1ED760")
+
+    def _update_genre_listen_time(self, increment_by: int):
+        """
+        Updates the listen time of the genre of the currently playing song.
+        """
+
+        with DatabaseManager() as db:
+            db.increment_genre_listen_time(increment_by)
+    
+    def currently_listening_update_loop(self):
+        """
+        Made to be called from a different thread. Gets the currently playing song and updates it in the database
+        """
