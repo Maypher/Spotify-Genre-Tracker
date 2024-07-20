@@ -42,6 +42,13 @@ class DatabaseManager:
 
         return True
 
+    @property
+    def database_version(self):
+        return self.cursor.execute("PRAGMA user_version").fetchone()[0]
+    
+    def update_database_version(self, version: int):
+        self.cursor.execute(f"PRAGMA user_version = {version}")
+
     def migration_upgrade(self):
         """
         Reads the migrations files from the provided directory and applies them to the database.
@@ -49,20 +56,21 @@ class DatabaseManager:
         """
 
         with os.scandir(self.migration_dir) as dir:
+            self.console.print("Applying latest migrations...", style=self.WARN_STYLE)
+
             upgrade_re = re.compile("[0-9]{3}_up.sql")
             file_index_re = re.compile("[0-9]{3}")
 
             up_files = [file for file in dir if upgrade_re.match(file.name)]
 
             # Get the latest applied migration as to not apply previous ones again
-            migration_version = self.cursor.execute("PRAGMA user_version").fetchone()[0]
+            migration_version = self.database_version
 
             # If the amount of migration files is greater than or equal to the database version then
             # it means no migrations are pending. 
             if migration_version >= len(up_files):
+                self.console.print("No pending migrations!", style=self.SUCCESS_STYLE)
                 return
-
-            self.console.print("Applying latest migrations...", style=self.WARN_STYLE)
 
             for index, migration_file in enumerate(up_files):
                 # Get the index from the filename
@@ -74,36 +82,94 @@ class DatabaseManager:
 
                 # If the migration files aren't numbered properly then throw an error.
                 if file_index == index + 1:
-                    with open(migration_file, "r") as sql_file:
-                        sql_command = ""
-                        # Read command by command because for big files `file.read()` doesn't return the entire content.
-                        # So far it only happens it then first migrations where all genres must be added to the database.
-                        for line in sql_file:
-                            line = line.strip()
-                            # Skip empty lines or comments
-                            if line == "" or line.startswith("--"):
-                                continue
-                            
-                            sql_command += line + " "
-                            
-                            if line.endswith(";"):
-                                self.cursor.execute(sql_command)
-                                sql_command = ""
-                        # Execute any remaining SQL command (in case file doesn't end with a newline)
-                        if sql_command.strip():
-                            self.cursor.execute(sql_command)
+                   self._apply_migration_file(migration_file)
                 else:
                     raise IndexError(f"Migration with ID {index + 1} not found. Rolled back all migrations.")
 
                 # Update the user version as to not apply the same migrations twice
                 migration_version += 1
-                self.cursor.execute(f"PRAGMA user_version = {migration_version}")
+                self.update_database_version(migration_version)
                 self.console.print(f"Migration {migration_version} applied successfully!", style=self.SUCCESS_STYLE)
         
         self.connection.commit()
         self.console.print("All migrations applied successfully. The database is up to date!", style=self.SUCCESS_STYLE)
 
+    def migration_rollback(self, rollback_version: int):
+        """
+        Reads the migration rollback files and undos all migrations down to `rollback_version`.
+        Rollback files must be in the format `xxx_down.sql` where `xxx` is a 3 digit number that should undo
+        the related migration.
+        """
+
+        # Get the latest applied migration to know where to start rolling back from
+        migration_version = self.cursor.execute("PRAGMA user_version").fetchone()[0]
+
+        # Can't rollback to a version that doesn't yet exist or to same version
+        if migration_version == rollback_version:
+            self.console.print(f"Database already in version {migration_version}. No changes have been made.", style=self.ERROR_STYLE)
+            return
+        elif migration_version < rollback_version:
+            self.console.print(f"Can't rollback migration to future version. \nCurrent database version: {migration_version}\nRollback version: {rollback_version}", style=self.ERROR_STYLE)
+            return
+
+        with os.scandir(self.migration_dir) as dir:
+            self.console.print(f"Rolling back to version {rollback_version}...", style=self.WARN_STYLE)
+
+            downgrade_re = re.compile("[0-9]{3}_down.sql")
+            file_index_re = re.compile("[0-9]{3}")
+
+            down_files = [file for file in dir if downgrade_re.match(file.name)]
+            down_files.sort(reverse=True, key= lambda file: file.name)
+
+            if migration_version - rollback_version != len(down_files):
+                self.console.print(f"Not enough rollback files found to rollback to version {rollback_version}.\n Rollback files found: {[file.name for file in down_files]}", style=self.ERROR_STYLE)
+                return
+
+            for migration_file in down_files:
+                # Stop applying rollbacks when the desired version is reached
+                if migration_version == rollback_version:
+                    break
+
+                # Get the index from the filename
+                file_index = int(file_index_re.search(migration_file.name).group(0))
+
+                print(migration_version)
+                print(file_index)
+                print(rollback_version)
+
+                # If the rollback files aren't numbered properly then throw an error.
+                if file_index == migration_version:
+                   self._apply_migration_file(migration_file)
+                else:
+                    raise IndexError(f"Rollback with ID {migration_version} not found. Rolled back all migrations.")
+
+                # Update the user version as to not apply the same rollback twice
+                migration_version -= 1
+                self.cursor.execute(f"PRAGMA user_version = {migration_version}")
+                self.console.print(f"Rollback {migration_version} applied successfully!", style=self.SUCCESS_STYLE)
         
+        self.connection.commit()
+        self.console.print(f"All rollbacks applied successfully. Database now at version {migration_version}!", style=self.SUCCESS_STYLE)
+    
+    def _apply_migration_file(self, migration_file: os.DirEntry):
+        with open(migration_file, "r") as sql_file:
+            sql_command = ""
+            # Read command by command because for big files `file.read()` doesn't return the entire content.
+            # So far it only happens it then first migrations where all genres must be added to the database.
+            for line in sql_file:
+                line = line.strip()
+                # Skip empty lines or comments
+                if line == "" or line.startswith("--"):
+                    continue
+                
+                sql_command += line + " "
+                
+                if line.endswith(";"):
+                    self.cursor.execute(sql_command)
+                    sql_command = ""
+            # Execute any remaining SQL command (in case file doesn't end with a newline)
+            if sql_command.strip():
+                self.cursor.execute(sql_command)
 
 
 
