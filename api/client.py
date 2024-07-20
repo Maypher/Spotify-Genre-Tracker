@@ -7,6 +7,24 @@ from typing import List, Dict
 class Client:
     pass
 
+@dataclass
+class CurrentTrack:
+    """
+    Information about the currently playing track.
+
+    ---
+    # Parameters
+    - `artists_names`: A list of the artist that created the song.
+    - `artists_id`: A list of the ids of the artists that created the song.
+    - `song_title`: The title of the currently playing song.
+    - `progress_ms`: The time in ms since the song started.
+    """
+    artists_names: List[str]
+    artist_ids: List[str]
+    song_title: str
+    genres: List[str]
+    progress_ms: int
+
 def requires_authentication(func):
     @wraps(func)
     def wrapper(client: Client, *args, **kwargs):
@@ -23,9 +41,9 @@ class Client:
         # todo try to load refresh token from database
         self.authenticator = Authenticator()
 
-    def get_current_track(self):
+    def get_current_track(self) -> CurrentTrack | None:
         """
-        Returns the currently playing song in the form of `CurrentTrack`
+        Returns the currently playing song in the form of `CurrentTrack`. Returns `None` if no track is being played
         """
         request_url = Client.BASE_URL + "me/player/currently-playing"        
         res = self._protected_request(request_url, "GET")
@@ -34,6 +52,11 @@ class Client:
             res_dict = dict(res.json())
 
             song = res_dict.get("item")
+
+            # Don't keep track of anything that's not a song (podcasts and audio books)
+            if song.get("type") != "track":
+                return None
+
             artists = song.get("artists")
 
             artists_names = [artist.get("name") for artist in artists]
@@ -63,7 +86,6 @@ class Client:
 
         return res.json()
 
-
     @requires_authentication
     def _protected_request(self, url: str, method: str) -> requests.Response:
         headers = {
@@ -71,22 +93,3 @@ class Client:
         }
 
         return requests.request(method=method, url=url, headers=headers)
-
-
-@dataclass
-class CurrentTrack:
-    """
-    Information about the currently playing track.
-
-    ---
-    # Parameters
-    - `artists_names`: A list of the artist that created the song.
-    - `artists_id`: A list of the ids of the artists that created the song.
-    - `song_title`: The title of the currently playing song.
-    - `progress_ms`: The time in ms since the song started.
-    """
-    artists_names: List[str]
-    artist_ids: List[str]
-    song_title: str
-    genres: List[str]
-    progress_ms: int
