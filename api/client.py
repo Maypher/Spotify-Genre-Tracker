@@ -18,12 +18,17 @@ class CurrentTrack:
     - `artists_id`: A list of the ids of the artists that created the song.
     - `song_title`: The title of the currently playing song.
     - `progress_ms`: The time in ms since the song started.
+    - `progress_s`: The time since the song started in seconds.
     """
     artists_names: List[str]
     artist_ids: List[str]
     song_title: str
     genres: List[str]
     progress_ms: int
+
+    @property
+    def progress_s(self) -> int:
+        return self.progress_ms / 1000
 
 def requires_authentication(func):
     @wraps(func)
