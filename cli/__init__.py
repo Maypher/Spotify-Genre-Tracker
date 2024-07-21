@@ -9,6 +9,7 @@ from rich.style import Style
 import threading
 
 import time
+import datetime
 
 class Program:
     SUCCESS_STYLE = Style(color="green")
@@ -33,13 +34,16 @@ class Program:
         with DatabaseManager() as db:
             db.migration_upgrade()
         
-        while not self.finish:
-            # If a refresh token exists it means the user is authenticated
-            if self.backend.authenticator.refresh_token:
-                # Print full options
-                pass
-            else:
-                self.anonymous_prompt_menu()
+        try:
+            while not self.finish:
+                    # If a refresh token exists it means the user is authenticated
+                    if self.backend.authenticator.refresh_token:
+                        # Print full options
+                        pass
+                    else:
+                        self.anonymous_prompt_menu()
+        except KeyboardInterrupt:
+            self.finish = True
 
     def anonymous_prompt_menu(self):
         """
@@ -171,7 +175,9 @@ class Program:
         recorded_time: int = recorded_song.progress_s if recorded_song else None # The time in seconds at the previous iteration of the loop
 
         while not self.finish:
+            time_before_request = datetime.datetime.now()
             current_song: CurrentTrack | None = self.backend.get_current_track()
+            request_time = datetime.datetime.now() - time_before_request
 
             # If no song was found before the start of the loop set it to the current song
             if not recorded_song:
@@ -189,16 +195,13 @@ class Program:
 
                     # The system could be cheated by manually forwarding the song.
                     # This makes sure it doesn't happen by checking if the time difference is greater than the check interval
-                    # Multiplied by 2 to give some leeway to the request. 
-                    if (dif_time > 2 * check_interval):
+                    if (dif_time > check_interval + request_time.seconds):
                         continue
 
                     with DatabaseManager() as db:
                         for genre in current_song.genres:
-                            genre_id = db.get_genres_by_name(genre)[0] # Since genre names are unique then it is assured that only one will be returned
-                            self._update_genre_listen_time(genre_id, dif_time)
-                    
-                    recorded_time = current_time
+                            genre_id = db.get_genres_by_name(genre) # Since genre names are unique then it is assured that only one will be returned
+                            self._update_genre_listen_time(genre_id, dif_time) 
                 else:
                     # If songs changed then the genres in common have to be updated
                     common_genres = [genre for genre in current_song.genres if genre in recorded_song.genres]
@@ -207,10 +210,10 @@ class Program:
                     with DatabaseManager() as db:
                         common_genres.append(current_song.genres)
                         for genre in set(common_genres):
-                            genre_id = db.get_genres_by_name(genre)[0]
+                            genre_id = db.get_genres_by_name(genre)
                             self._update_genre_listen_time(genre_id, current_time)
                     
-                    recorded_time = current_time
+                recorded_time = current_time
 
             time.sleep(check_interval)
 
