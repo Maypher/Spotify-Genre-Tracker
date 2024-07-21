@@ -5,6 +5,7 @@ from rich.style import Style
 import re
 from pathlib import Path
 from typing import Tuple, List
+import traceback
 
 
 GenreEntry = Tuple[int, str, int]
@@ -41,9 +42,12 @@ class DatabaseManager:
         self.cursor = self.connection.cursor()
         return self
     
-    def __exit__(self, exc_type, exc_val, traceback):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type:
             self.console.print(f"Exception [bold]{exc_type}: {exc_val}[/bold]", style=self.ERROR_STYLE)
+            if os.environ.get("debug"):
+                formatted_traceback = ''.join(traceback.format_exception(exc_type, exc_val, exc_tb))
+                self.console.print(formatted_traceback)
 
         self.cursor.close()
         self.connection.close()
