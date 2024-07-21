@@ -187,6 +187,13 @@ class DatabaseManager:
         """
         return self.cursor.execute(f"SELECT * FROM Genre WHERE name LIKE '%{name}%' ORDER BY name").fetchall()
     
+    def get_genre_by_name(self, name: str) -> GenreEntry | None:
+        """
+        Gets a single genre from the database. Meant to be used by the API since it has to exactly match so only one will be returned.
+        """
+        result = self.cursor.execute(f"SELECT * FROM Genre WHERE name LIKE '{name}'").fetchone()
+        return result
+    
     def get_top_listens(self) -> List[GenreEntry]:
         return self.cursor.execute(f"SELECT * FROM Genre WHERE listened_time > 0 ORDER BY listened_time DESC").fetchall()
 
@@ -206,3 +213,4 @@ class DatabaseManager:
             self.connection.commit()
         except sqlite3.IntegrityError:
             raise sqlite3.IntegrityError(f"Genre with name '{name}' already exists.")
+
