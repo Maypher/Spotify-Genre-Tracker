@@ -17,12 +17,14 @@ class CurrentTrack:
     - `artists_names`: A list of the artist that created the song.
     - `artists_id`: A list of the ids of the artists that created the song.
     - `song_title`: The title of the currently playing song.
+    - `song_id`: The ID of the song in the Spotify API
     - `progress_ms`: The time in ms since the song started.
     - `progress_s`: The time since the song started in seconds.
     """
     artists_names: List[str]
     artist_ids: List[str]
     song_title: str
+    song_id: str
     genres: List[str]
     progress_ms: int
 
@@ -67,6 +69,7 @@ class Client:
             artists_names = [artist.get("name") for artist in artists]
             artists_ids = [artist.get("id") for artist in artists]
             song_title = song.get("name")
+            song_id = song.get("id")
             progress_ms = res_dict.get("progress_ms")
 
             genres = []
@@ -75,7 +78,7 @@ class Client:
                 artist_genres = self.get_artist(id).get("genres")
                 genres += artist_genres
              
-            current_track = CurrentTrack(artists_names, artists_ids, song_title, genres, progress_ms)
+            current_track = CurrentTrack(artists_names, artists_ids, song_title, song_id, genres, progress_ms)
 
             return current_track 
         return None
