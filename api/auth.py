@@ -6,6 +6,7 @@ import urllib.parse
 import webbrowser
 import requests
 from datetime import datetime, timedelta
+from database import DatabaseManager
 
 class Authenticator:
     '''
@@ -110,6 +111,9 @@ class Authenticator:
             self.expiry_time = expiry_time
             self.refresh_token = refresh_token
 
+            with DatabaseManager() as db:
+                db.set_refresh_token(refresh_token)
+
     def request_auth_code(self):
         """
         Requests the auth code necessary to get the access and refresh tokens. 
@@ -160,6 +164,9 @@ class Authenticator:
         if access_token and refresh_token:
             self.refresh_token = refresh_token
             self.access_token = access_token
+         
+            with DatabaseManager() as db:
+                db.set_refresh_token(refresh_token)
 
     def is_token_valid(self) -> bool:
         """
