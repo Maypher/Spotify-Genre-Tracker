@@ -161,11 +161,13 @@ class Authenticator:
             raise PermissionError(f"Unable to refresh access token: {error} ({error_desc})")
 
         access_token = res.get("access_token")
+        expires_in = res.get("expires_in")
         refresh_token = res.get("refresh_token")
 
-        if access_token and refresh_token:
+        if access_token and refresh_token and expires_in:
             self.refresh_token = refresh_token
             self.access_token = access_token
+            self.expiry_time = datetime.now() + timedelta(seconds=expires_in)
          
             with DatabaseManager() as db:
                 db.set_refresh_token(refresh_token)
