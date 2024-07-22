@@ -9,7 +9,7 @@ from rich.style import Style
 import threading
 
 import time
-import datetime
+from datetime import timedelta, datetime
 
 class Program:
     SUCCESS_STYLE = Style(color="green")
@@ -39,7 +39,7 @@ class Program:
                     # If a refresh token exists it means the user is authenticated
                     if self.backend.authenticator.refresh_token:
                         # Print full options
-                        pass
+                        self.prompt_menu()
                     else:
                         self.anonymous_prompt_menu()
         except KeyboardInterrupt:
@@ -97,6 +97,8 @@ class Program:
         menu.add_row("2", "View genre(s) progress", "Displays the progress of the genres that match the given query.")
         menu.add_row("3", "Logout", "Logs out by removing the credentials of the authenticated user. (TODO)")
         menu.add_row("4", "Quit", "Terminates the program")
+
+        self.console.print(menu)
 
         option = IntPrompt.ask(choices=["1", "2", "3", "4"])
 
@@ -171,13 +173,14 @@ class Program:
         - `check_interval`: How often to ping the player for the current song.
         """
 
+        check_interval: timedelta = timedelta(seconds=check_interval)
         recorded_song: CurrentTrack | None = self.backend.get_current_track()
-        recorded_time: int = recorded_song.progress_s if recorded_song else None # The time in seconds at the previous iteration of the loop
+        recorded_time: int = timedelta(seconds=recorded_song.progress_s) if recorded_song else None # The time in seconds at the previous iteration of the loop
 
         while not self.finish:
-            time_before_request = datetime.datetime.now()
+            time_before_request = datetime.now()
             current_song: CurrentTrack | None = self.backend.get_current_track()
-            request_time = datetime.datetime.now() - time_before_request
+            request_time = datetime.now() - time_before_request
 
             # If no song was found before the start of the loop set it to the current song
             if not recorded_song:
@@ -187,36 +190,48 @@ class Program:
             if current_song:
                 # For the first iteration of the loop if no song is playing the set it to 0
                 if not recorded_time:
-                    recorded_time = current_song.progress_s
+                    recorded_time = timedelta(seconds=current_song.progress_s)
 
-                if current_song.song_title == recorded_song.song_title:
-                    current_time = current_song.progress_s
-                    dif_time = current_time - recorded_time # The difference in time between the current moment and the last loop iteration
+                current_time = timedelta(seconds=current_song.progress_s)
+
+                if current_song.song_id == recorded_song.song_id:
+                    dif_time: timedelta = current_time - recorded_time # The difference in time between the current moment and the last loop iteration
 
                     # The system could be cheated by manually forwarding the song.
                     # This makes sure it doesn't happen by checking if the time difference is greater than the check interval
-                    if (dif_time > check_interval + request_time.seconds):
-                        continue
+                    if dif_time < check_interval + request_time:
+                        with DatabaseManager() as db:
+                            for genre in current_song.genres:
+                                genre_data = db.get_genre_by_name(genre)
 
-                    with DatabaseManager() as db:
-                        for genre in current_song.genres:
-                            genre_id = db.get_genres_by_name(genre) # Since genre names are unique then it is assured that only one will be returned
-                            self._update_genre_listen_time(genre_id, dif_time) 
+                                if not genre_data:
+                                    self._create_new_genre(genre)
+                                    genre_data = db.get_genre_by_name(genre)
+
+                                self._update_genre_listen_time(genre_data[0], dif_time.seconds)
                 else:
-                    # If songs changed then the genres in common have to be updated
-                    common_genres = [genre for genre in current_song.genres if genre in recorded_song.genres]
-                    current_time = current_song.progress_s
-                    
-                    with DatabaseManager() as db:
-                        common_genres.append(current_song.genres)
-                        for genre in set(common_genres):
-                            genre_id = db.get_genres_by_name(genre)
-                            self._update_genre_listen_time(genre_id, current_time)
+                    # The system could be cheated by manually changing the song and forwarding it
+                    # This prevents it by checking if the time of the new song is greater than what the interval is
+                    if (current_time < check_interval + request_time):
+                        with DatabaseManager() as db:
+                            for genre in current_song.genres:
+                                genre_data = db.get_genre_by_name(genre)
+
+                                if not genre_data:
+                                    self._create_new_genre(genre)
+                                    genre_data = db.get_genre_by_name(genre)
+
+                                self._update_genre_listen_time(genre_data[0], current_time.seconds)
                     
                 recorded_time = current_time
 
-            time.sleep(check_interval)
+            time.sleep(check_interval.total_seconds())
 
     def _start_listening_thread(self):
         listenting_thread = threading.Thread(target=self._currently_listening_update_loop, args=(1.5, ))
         listenting_thread.start()
+    
+    def _create_new_genre(self, name: str):
+        with DatabaseManager() as db:
+            db.create_new_genre(name)
+            self.console.print("You found a new genre! It has been added into the database. Please contact the developer so he can add it to future releases of program.", style=self.SUCCESS_STYLE)
