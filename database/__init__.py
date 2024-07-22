@@ -226,6 +226,8 @@ class DatabaseManager:
         way to store secrets cross platform this will have to do for now. Hope your PC isn't compromised :)
         """
         if not self.get_refresh_token():
-            return self.cursor.execute(f"INSERT INTO RefreshToken VALUES ('{token}')")
+            self.cursor.execute(f"INSERT INTO RefreshToken VALUES ('{token}')")
 
-        return self.cursor.execute(f"UPDATE RefreshToken SET token='{token}'")
+        self.cursor.execute(f"UPDATE RefreshToken SET token='{token}'")
+
+        self.connection.commit()
