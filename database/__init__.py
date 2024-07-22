@@ -214,3 +214,18 @@ class DatabaseManager:
         except sqlite3.IntegrityError:
             raise sqlite3.IntegrityError(f"Genre with name '{name}' already exists.")
 
+    def get_refresh_token(self):
+        """
+        Gets the refresh token from the database if any
+        """
+        return self.cursor.execute("SELECT * FROM RefreshToken").fetchone()
+    
+    def set_refresh_token(self, token: str):
+        """
+        Sets the refresh token in the database. This probably isn't the best place to store it but since I can't find a
+        way to store secrets cross platform this will have to do for now. Hope your PC isn't compromised :)
+        """
+        if not self.get_refresh_token():
+            return self.cursor.execute(f"INSERT INTO RefreshToken VALUES ('{token}')")
+
+        return self.cursor.execute(f"UPDATE RefreshToken SET token='{token}'")

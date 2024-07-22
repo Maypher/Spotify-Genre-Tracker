@@ -4,6 +4,8 @@ CREATE TABLE Genre (
   listened_time SMALLINT DEFAULT 0
 );
 
+CREATE TABLE RefreshToken (token VARCHAR(255));
+
 -- Thanks to https://gist.github.com/andytlr/4104c667a62d8145aa3a for the list
 INSERT INTO Genre (name) VALUES ("A Cappella");
 INSERT INTO Genre (name) VALUES ("Abstract");
