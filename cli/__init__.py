@@ -18,21 +18,26 @@ class Program:
     console: Console
     backend: Client
     finish: bool
+    refresh_token: str | None
 
     def __init__(self, refresh_token: str | None = None) -> None:
         self.console = Console()
         self.finish = False
-
-        if refresh_token:
-            self.backend = Client(refresh_token)
-        else:
-            self.backend = Client()
+        self.refresh_token = refresh_token
+        self.backend = Client()
 
     def run(self):
         self.print_spotify_logo()
 
         with DatabaseManager() as db:
             db.migration_upgrade()
+
+        # Try to login with given refresh token
+        self.backend.authenticator.refresh_token = self.refresh_token
+        try:
+            self.backend.authenticator.refresh_tokens()
+        except PermissionError as e:
+            self.console.print(e.args[0], style=self.ERROR_STYLE)
         
         try:
             while not self.finish:
