@@ -56,7 +56,7 @@ class Authenticator:
         self.code_verifier = Authenticator._generate_random_string(64)
         self.refresh_token = refresh_token
 
-        if self.refresh_token:
+        if refresh_token:
             self.refresh_tokens()
 
     def request_access_token(self, redirected_url: str):
@@ -156,6 +156,8 @@ class Authenticator:
         error_desc = res.get("error_description")
 
         if error:
+            self.refresh_token = None
+            self.access_token = None
             raise PermissionError(f"Unable to refresh access token: {error} ({error_desc})")
 
         access_token = res.get("access_token")

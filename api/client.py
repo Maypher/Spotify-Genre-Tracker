@@ -44,9 +44,11 @@ class Client:
     BASE_URL: str = "https://api.spotify.com/v1/"
     authenticator: Authenticator
 
-    def __init__(self) -> None:
-        # todo try to load refresh token from database
-        self.authenticator = Authenticator()
+    def __init__(self, refresh_token: str | None = None) -> None:
+        if refresh_token:
+            self.authenticator = Authenticator(refresh_token)
+        else:
+            self.authenticator = Authenticator()
 
     def get_current_track(self) -> CurrentTrack | None:
         """

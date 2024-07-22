@@ -9,7 +9,6 @@ def main():
         refresh_token = db.get_refresh_token()
 
         if refresh_token:
-            print(refresh_token[0])
             program = cli.Program(refresh_token[0])
         else:
             program = cli.Program()
