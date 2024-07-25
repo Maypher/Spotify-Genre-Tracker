@@ -105,7 +105,7 @@ class Program:
 
         menu.add_row("1", "View progress", "Displays the progress of all genres.")
         menu.add_row("2", "View genre(s) progress", "Displays the progress of the genres that match the given query.")
-        menu.add_row("3", "Logout", "Logs out by removing the credentials of the authenticated user. (TODO)")
+        menu.add_row("3", "Logout", "Logs out by removing the credentials of the authenticated user.")
         menu.add_row("4", "Quit", "Terminates the program.")
 
         self.console.print(menu)
