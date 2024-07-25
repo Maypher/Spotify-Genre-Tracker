@@ -23,22 +23,25 @@ class Program:
     refresh_token: str | None
     time_goal: timedelta
 
-    def __init__(self, time_goal: timedelta, refresh_token: str | None = None) -> None:
+    def __init__(self, time_goal: timedelta) -> None:
         self.console = Console()
         self.finish = False
-        self.refresh_token = refresh_token
         self.backend = Client()
         self.time_goal = time_goal
 
     def run(self):
         self.print_spotify_logo()
 
+        refresh_token = None
+
         with DatabaseManager() as db:
             db.migration_upgrade()
+            refresh_token = db.get_refresh_token()
 
-        if self.refresh_token:
+        if refresh_token:
+            self.refresh_token = refresh_token
             # Try to login with given refresh token
-            self.backend.authenticator.refresh_token = self.refresh_token
+            self.backend.authenticator.refresh_token = refresh_token
             try:
                 self.backend.authenticator.refresh_tokens()
                 self._start_listening_thread()
@@ -308,6 +311,7 @@ class Program:
                                 self._update_genre_listen_time(genre_data[0], current_time.seconds)
                     
                 recorded_time = current_time
+                recorded_song = current_song
 
             time.sleep(check_interval.total_seconds())
 
@@ -318,7 +322,7 @@ class Program:
     def _create_new_genre(self, name: str):
         with DatabaseManager() as db:
             db.create_new_genre(name)
-            self.console.print("You found a new genre! It has been added into the database. Please contact the developer so he can add it to future releases of program.", style=self.SUCCESS_STYLE)
+            self.console.print(f"You found a new genre ([bold]{name}[/bold])! It has been added into the database. Please contact the developer so he can add it to future releases of program.", style=self.SUCCESS_STYLE)
 
     def _create_progress_bar_for_genres(self, genres):
         progress = Progress(TextColumn("{task.description}"), 
