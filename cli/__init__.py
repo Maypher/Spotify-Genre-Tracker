@@ -36,13 +36,14 @@ class Program:
         with DatabaseManager() as db:
             db.migration_upgrade()
 
-        # Try to login with given refresh token
-        self.backend.authenticator.refresh_token = self.refresh_token
-        try:
-            self.backend.authenticator.refresh_tokens()
-            self._start_listening_thread()
-        except PermissionError as e:
-            self.console.print(e.args[0], style=self.ERROR_STYLE)
+        if self.refresh_token:
+            # Try to login with given refresh token
+            self.backend.authenticator.refresh_token = self.refresh_token
+            try:
+                self.backend.authenticator.refresh_tokens()
+                self._start_listening_thread()
+            except PermissionError as e:
+                self.console.print(e.args[0], style=self.ERROR_STYLE)
         
         try:
             while not self.finish:
@@ -260,7 +261,7 @@ class Program:
         recorded_song: CurrentTrack | None = self.backend.get_current_track()
         recorded_time: int = timedelta(seconds=recorded_song.progress_s) if recorded_song else None # The time in seconds at the previous iteration of the loop
 
-        while not self.finish:
+        while not self.finish and self.backend.authenticator.refresh_token:
             time_before_request = datetime.now()
             current_song: CurrentTrack | None = self.backend.get_current_track()
             request_time = datetime.now() - time_before_request
