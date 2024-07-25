@@ -122,7 +122,7 @@ class Program:
                 self.view_genre_progress()
             case 3:
                 # Logout
-                pass
+                self.backend.authenticator.logout()
             case 4:
                 # Quit
                 self.finish = True
@@ -168,8 +168,6 @@ class Program:
             self.console.print(progress)
 
             Prompt.ask("Press enter to continue")
-
-
 
     def view_progress(self):
         # Load all genres with progress
