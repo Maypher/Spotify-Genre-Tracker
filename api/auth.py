@@ -92,7 +92,12 @@ class Authenticator:
 
         }
 
-        res_dict = dict(requests.post(Authenticator.TOKEN_URL, headers=headers, params=body).json())
+        res = requests.post(Authenticator.TOKEN_URL, headers=headers, params=body)
+
+        if res.status_code != 200:
+            raise ConnectionError("Can't reach authentication endpoint.")
+        
+        res_dict = dict(res.json())
         
         error = res_dict.get("error")
         error_desc = res_dict.get("error_description")
@@ -179,6 +184,13 @@ class Authenticator:
         if self.access_token and self.expiry_time:
             return self.expiry_time - datetime.now() < timedelta(seconds=10)
         return False
+
+    def logout(self):
+        self.access_token = None
+        self.refresh_token = None
+
+        with DatabaseManager() as db:
+            db.set_refresh_token("")
 
     def _generate_random_string(length: int):
         possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
