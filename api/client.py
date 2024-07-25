@@ -60,6 +60,11 @@ class Client:
         if res.status_code == 200:
             res_dict = dict(res.json())
 
+            is_playing = res_dict.get("is_playing")
+
+            if not is_playing:
+                return None
+
             song = res_dict.get("item")
 
             # Don't keep track of anything that's not a song (podcasts and audio books)
