@@ -3,13 +3,15 @@ from database import DatabaseManager
 
 from rich.console import Console
 from rich.prompt import Prompt, IntPrompt
-from rich.table import Table
+from rich.table import Table, Column
 from rich import box
 from rich.style import Style
-import threading
+from rich.progress import Progress, TextColumn, BarColumn
 
+import threading
 import time
 from datetime import timedelta, datetime
+import math
 
 class Program:
     SUCCESS_STYLE = Style(color="green")
@@ -19,12 +21,14 @@ class Program:
     backend: Client
     finish: bool
     refresh_token: str | None
+    time_goal: timedelta
 
-    def __init__(self, refresh_token: str | None = None) -> None:
+    def __init__(self, time_goal: timedelta, refresh_token: str | None = None) -> None:
         self.console = Console()
         self.finish = False
         self.refresh_token = refresh_token
         self.backend = Client()
+        self.time_goal = time_goal
 
     def run(self):
         self.print_spotify_logo()
@@ -36,6 +40,7 @@ class Program:
         self.backend.authenticator.refresh_token = self.refresh_token
         try:
             self.backend.authenticator.refresh_tokens()
+            self._start_listening_thread()
         except PermissionError as e:
             self.console.print(e.args[0], style=self.ERROR_STYLE)
         
@@ -101,7 +106,7 @@ class Program:
         menu.add_row("1", "View progress", "Displays the progress of all genres.")
         menu.add_row("2", "View genre(s) progress", "Displays the progress of the genres that match the given query.")
         menu.add_row("3", "Logout", "Logs out by removing the credentials of the authenticated user. (TODO)")
-        menu.add_row("4", "Quit", "Terminates the program")
+        menu.add_row("4", "Quit", "Terminates the program.")
 
         self.console.print(menu)
 
@@ -109,11 +114,12 @@ class Program:
 
         match option:
             case 1:
-                # Get and display the progress of all genres
+                # View progress of all non 0 genres
+                self.view_progress()
                 pass
             case 2:
                 # View a specific genre's progress
-                pass
+                self.view_genre_progress()
             case 3:
                 # Logout
                 pass
@@ -121,6 +127,80 @@ class Program:
                 # Quit
                 self.finish = True
 
+    def view_genre_progress(self):
+        genre = Prompt.ask("Genre")
+        
+        genres = []
+        with DatabaseManager() as db:
+            genres = list(filter(lambda genre: genre[2] > 0, db.get_genres_by_name(genre)))
+
+        if not genre:
+            self.console.print(f"No genre with name {genre} has progress.", style=self.SUCCESS_STYLE)
+            return
+
+        page = 0
+        items_per_page = 10
+        final_page = math.ceil(len(genres) / items_per_page)
+
+        if final_page > 1:
+            while True:
+                        # Display the progress bar of those genres in chunks of 10
+                        progress = self._create_progress_bar_for_genres(genres[page*items_per_page: page*items_per_page + items_per_page])
+                    
+                        self.console.print(progress)
+                        # Show page progress
+                        self.console.print(f"Page {page + 1}/{final_page}")
+
+                        option = Prompt.ask("Previous/Next/Back", choices=["P", "N", "B"])
+
+                        match option:
+                            case "P":
+                                page = max(0, page - 1)
+                            case "N":
+                                page = min(page + 1, final_page - 1)
+                            case "B":
+                                break
+
+                        self.console.line()
+        else:
+            progress = self._create_progress_bar_for_genres(genres[page*items_per_page: page*items_per_page + items_per_page])
+        
+            self.console.print(progress)
+
+            Prompt.ask("Press enter to continue")
+
+
+
+    def view_progress(self):
+        # Load all genres with progress
+        genres_in_progress = None
+        with DatabaseManager() as db:
+            genres_in_progress = db.get_top_listens()
+
+        page = 0
+        items_per_page = 10
+        final_page = math.ceil(len(genres_in_progress) / items_per_page)
+        
+        while True:
+            # Display the progress bar of those genres in chunks of 10
+            progress = self._create_progress_bar_for_genres(genres_in_progress[page*items_per_page: page*items_per_page + items_per_page])
+        
+            self.console.print(progress)
+            # Show page progress
+            self.console.print(f"Page {page + 1}/{final_page}")
+
+            option = Prompt.ask("Previous/Next/Back", choices=["P", "N", "B"])
+
+            match option:
+                case "P":
+                    page = max(0, page - 1)
+                case "N":
+                    page = min(page + 1, final_page - 1)
+                case "B":
+                    break
+
+            self.console.line()
+            
     def print_spotify_logo(self):
         self.console.print("""
                             .:--======--:.                            
@@ -240,3 +320,24 @@ class Program:
         with DatabaseManager() as db:
             db.create_new_genre(name)
             self.console.print("You found a new genre! It has been added into the database. Please contact the developer so he can add it to future releases of program.", style=self.SUCCESS_STYLE)
+
+    def _create_progress_bar_for_genres(self, genres):
+        progress = Progress(TextColumn("{task.description}"), 
+                            BarColumn(), 
+                            TextColumn("{task.fields[percentage]}%"),
+                            TextColumn("{task.fields[time]}/{task.fields[total_time]}"), 
+                            auto_refresh=False
+                        )
+        
+        for genre in genres:
+            genre_name = genre[1]
+            genre_listen_time = timedelta(seconds=genre[2])
+            
+            progress.add_task(genre_name, 
+                    total=(self.time_goal.total_seconds()),
+                    completed=genre_listen_time.total_seconds(), 
+                    time=genre_listen_time, 
+                    total_time=self.time_goal,
+                    percentage=round(genre_listen_time.total_seconds()/self.time_goal.total_seconds()*100, 2)
+                )
+        return progress

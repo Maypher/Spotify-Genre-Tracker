@@ -1,6 +1,7 @@
 import cli
 from dotenv import load_dotenv
 from database import DatabaseManager
+from datetime import timedelta
 
 def main():
     load_dotenv()
@@ -8,10 +9,12 @@ def main():
     with DatabaseManager() as db:
         refresh_token = db.get_refresh_token()
 
+        time_goal = timedelta(hours=5)
+
         if refresh_token:
-            program = cli.Program(refresh_token[0])
+            program = cli.Program(time_goal, refresh_token[0])
         else:
-            program = cli.Program()
+            program = cli.Program(time_goal)
         
         program.run()
 
