@@ -155,19 +155,24 @@ class Authenticator:
             'Content-Type': "application/x-www-form-urlencoded"
         }
 
-        res = dict(requests.post(Authenticator.TOKEN_URL, params=params, headers=headers).json())
+        res = requests.post(Authenticator.TOKEN_URL, params=params, headers=headers)
 
-        error = res.get("error")
-        error_desc = res.get("error_description")
+        if res.status_code != 200:
+            raise ConnectionError(res)
+        
+        res_dict = dict(res.json())
+
+        error = res_dict.get("error")
+        error_desc = res_dict.get("error_description")
 
         if error:
             self.refresh_token = None
             self.access_token = None
             raise PermissionError(f"Unable to refresh access token: {error} ({error_desc})")
 
-        access_token = res.get("access_token")
-        expires_in = res.get("expires_in")
-        refresh_token = res.get("refresh_token")
+        access_token = res_dict.get("access_token")
+        expires_in = res_dict.get("expires_in")
+        refresh_token = res_dict.get("refresh_token")
 
         if access_token and refresh_token and expires_in:
             self.refresh_token = refresh_token
