@@ -286,7 +286,7 @@ class Program:
 
                     # The system could be cheated by manually forwarding the song.
                     # This makes sure it doesn't happen by checking if the time difference is greater than the check interval
-                    if dif_time < check_interval + request_time:
+                    if timedelta(seconds=0) < dif_time < check_interval + request_time:
                         with DatabaseManager() as db:
                             for genre in current_song.genres:
                                 genre_data = db.get_genre_by_name(genre)
@@ -299,7 +299,7 @@ class Program:
                 else:
                     # The system could be cheated by manually changing the song and forwarding it
                     # This prevents it by checking if the time of the new song is greater than what the interval is
-                    if (current_time < check_interval + request_time):
+                    if timedelta(seconds=0) < current_time < check_interval + request_time:
                         with DatabaseManager() as db:
                             for genre in current_song.genres:
                                 genre_data = db.get_genre_by_name(genre)
