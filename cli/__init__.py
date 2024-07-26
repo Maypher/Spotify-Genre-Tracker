@@ -36,7 +36,7 @@ class Program:
 
         with DatabaseManager() as db:
             db.migration_upgrade()
-            refresh_token = db.get_refresh_token()
+            refresh_token = db.get_refresh_token()[0]
 
         if refresh_token:
             self.refresh_token = refresh_token
@@ -47,6 +47,10 @@ class Program:
                 self._start_listening_thread()
             except PermissionError as e:
                 self.console.print(e.args[0], style=self.ERROR_STYLE)
+            except ConnectionError as e:
+                self.console.print(e.args[0].text, style=self.ERROR_STYLE)
+                self.refresh_token = None
+                self.backend.authenticator.refresh_token = None
         
         try:
             while not self.finish:
