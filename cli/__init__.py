@@ -1,17 +1,16 @@
 from api.client import Client, CurrentTrack
-from database import GenreEntry
 from database import DatabaseManager
 
 from rich.console import Console
 from rich.prompt import Prompt, IntPrompt
-from rich.table import Table, Column
+from rich.table import Table
 from rich import box
 from rich.style import Style
 from rich.progress import Progress, TextColumn, BarColumn
 
 import threading
 import time
-from datetime import timedelta, datetime
+from datetime import timedelta
 import math
 
 class Program:

@@ -1,6 +1,5 @@
 import cli
 from dotenv import load_dotenv
-from database import DatabaseManager
 from datetime import timedelta
 
 def main():
