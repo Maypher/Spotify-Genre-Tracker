@@ -291,7 +291,10 @@ class Program:
                             if not genre_data:
                                 self._create_new_genre(genre)
                                 genre_data = db.get_genre_by_name(genre)
-                            genres_to_update.append(genre_data)
+
+                            # Skip genre if it already reached the time goal
+                            if timedelta(seconds=genre_data[2]) < timedelta(hours=self.time_goal):
+                                genres_to_update.append(genre_data)
 
                 continue  # Skip to next iteration to start timing from here
 
