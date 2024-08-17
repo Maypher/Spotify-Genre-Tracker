@@ -158,7 +158,7 @@ class Authenticator:
         res = requests.post(Authenticator.TOKEN_URL, params=params, headers=headers)
 
         if res.status_code != 200:
-            raise ConnectionError(res)
+            raise ConnectionError(res.content)
         
         res_dict = dict(res.json())
 
