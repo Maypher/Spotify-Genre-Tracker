@@ -1,4 +1,5 @@
 from api.client import Client, CurrentTrack
+from database import GenreEntry
 from database import DatabaseManager
 
 from rich.console import Console
@@ -22,12 +23,14 @@ class Program:
     finish: bool
     refresh_token: str | None
     time_goal: timedelta
+    current_song: CurrentTrack | None
 
     def __init__(self, time_goal: timedelta) -> None:
         self.console = Console()
         self.finish = False
         self.backend = Client()
         self.time_goal = time_goal
+        self.current_song = None
 
     def run(self):
         self.print_spotify_logo()
@@ -36,7 +39,8 @@ class Program:
 
         with DatabaseManager() as db:
             db.migration_upgrade()
-            refresh_token = db.get_refresh_token()[0]
+            refresh_token = db.get_refresh_token()
+            refresh_token = refresh_token[0] if refresh_token else None
 
         if refresh_token:
             self.refresh_token = refresh_token
@@ -257,70 +261,64 @@ class Program:
 
     def _currently_listening_update_loop(self, check_interval: float):
         """
-        Made to be called from a different thread. Gets the currently playing song and updates it in the database.
-        
+        Made to be called from a different thread. Updates the currently playing song in the database.
+ 
         ---
         # Parameters
         - `check_interval`: How often to ping the player for the current song.
         """
+        recorded_song: CurrentTrack | None = None
+        recorded_time: float | None = None
 
-        check_interval: timedelta = timedelta(seconds=check_interval)
-        recorded_song: CurrentTrack | None = self.backend.get_current_track()
-        recorded_time: int = timedelta(seconds=recorded_song.progress_s) if recorded_song else None # The time in seconds at the previous iteration of the loop
+        genres_to_update = [] # The genres that should be updated for the current song
 
         while not self.finish and self.backend.authenticator.refresh_token:
-            time_before_request = datetime.now()
             current_song: CurrentTrack | None = self.backend.get_current_track()
-            request_time = datetime.now() - time_before_request
+            current_time = time.time()
 
-            # If no song was found before the start of the loop set it to the current song
-            if not recorded_song:
+            # If no song was found before the start of the loop or the song has changed
+            if not recorded_song or (current_song and current_song.song_id != recorded_song.song_id):
+                # Update recorded song and time
                 recorded_song = current_song
-
-            # If the user hasn't changed the song since the previous iteration of the loop
-            if current_song:
-                # For the first iteration of the loop if no song is playing the set it to 0
-                if not recorded_time:
-                    recorded_time = timedelta(seconds=current_song.progress_s)
-
-                current_time = timedelta(seconds=current_song.progress_s)
-
-                if current_song.song_id == recorded_song.song_id:
-                    dif_time: timedelta = current_time - recorded_time # The difference in time between the current moment and the last loop iteration
-
-                    # The system could be cheated by manually forwarding the song.
-                    # This makes sure it doesn't happen by checking if the time difference is greater than the check interval
-                    if timedelta(seconds=0) < dif_time < check_interval + request_time:
-                        with DatabaseManager() as db:
-                            for genre in current_song.genres:
-                                genre_data = db.get_genre_by_name(genre)
-
-                                if not genre_data:
-                                    self._create_new_genre(genre)
-                                    genre_data = db.get_genre_by_name(genre)
-
-                                self._update_genre_listen_time(genre_data[0], dif_time.seconds)
-                else:
-                    # The system could be cheated by manually changing the song and forwarding it
-                    # This prevents it by checking if the time of the new song is greater than what the interval is
-                    if timedelta(seconds=0) < current_time < check_interval + request_time:
-                        with DatabaseManager() as db:
-                            for genre in current_song.genres:
-                                genre_data = db.get_genre_by_name(genre)
-
-                                if not genre_data:
-                                    self._create_new_genre(genre)
-                                    genre_data = db.get_genre_by_name(genre)
-
-                                self._update_genre_listen_time(genre_data[0], current_time.seconds)
-                    
                 recorded_time = current_time
-                recorded_song = current_song
 
-            time.sleep(check_interval.total_seconds())
+                # Update the genres that should be updated for the current song
+                if current_song:
+                    with DatabaseManager() as db:
+                        genres_to_update = []
+
+                        for genre in current_song.genres:
+                            genre_data = db.get_genre_by_name(genre)
+                            if not genre_data:
+                                self._create_new_genre(genre)
+                                genre_data = db.get_genre_by_name(genre)
+                            genres_to_update.append(genre_data)
+
+                continue  # Skip to next iteration to start timing from here
+
+            # If a song is currently playing
+            if current_song:
+                # Calculate the actual time difference
+                dif_time = timedelta(seconds=current_time - recorded_time)
+                
+                # Check if the time difference is within expected bounds
+                if timedelta(seconds=0) < dif_time:
+                    with DatabaseManager() as db:
+                        for genre in genres_to_update:
+                            self._update_genre_listen_time(genre[0], dif_time.seconds)
+
+            # Update recorded song and time for next iteration
+            recorded_song = current_song
+            recorded_time = current_time
+
+            # Sleep for the check interval
+            time.sleep(check_interval)
 
     def _start_listening_thread(self):
-        listenting_thread = threading.Thread(target=self._currently_listening_update_loop, args=(1.5, ))
+        """
+        Starts the secondary threads that keep the song up to date and manage the database while the ui is running.
+        """
+        listenting_thread = threading.Thread(target=self._currently_listening_update_loop, args=(1, ))
         listenting_thread.start()
     
     def _create_new_genre(self, name: str):
