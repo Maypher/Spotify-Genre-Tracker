@@ -6,7 +6,7 @@ CREATE TABLE Genre (
 
 CREATE TABLE RefreshToken (token VARCHAR(255));
 
--- Thanks to https://gist.github.com/andytlr/4104c667a62d8145aa3a for the list
+-- Thanks to https://gist.github.com/andytlr/4104c667a62d8145aa3a for most of the list
 INSERT INTO Genre (name) VALUES ("A Cappella");
 INSERT INTO Genre (name) VALUES ("Abstract");
 INSERT INTO Genre (name) VALUES ("Abstract Beats");
@@ -88,6 +88,7 @@ INSERT INTO Genre (name) VALUES ("Azonto");
 INSERT INTO Genre (name) VALUES ("Bachata");
 INSERT INTO Genre (name) VALUES ("Baile Funk");
 INSERT INTO Genre (name) VALUES ("Balearic");
+INSERT INTO Genre (name) VALUES ("Balkan Beats");
 INSERT INTO Genre (name) VALUES ("Balkan Brass");
 INSERT INTO Genre (name) VALUES ("Banda");
 INSERT INTO Genre (name) VALUES ("Bangla");
@@ -1196,6 +1197,7 @@ INSERT INTO Genre (name) VALUES ("Soul Flow");
 INSERT INTO Genre (name) VALUES ("Soul Jazz");
 INSERT INTO Genre (name) VALUES ("Soundtrack");
 INSERT INTO Genre (name) VALUES ("South African Jazz");
+INSERT INTO Genre (name) VALUES ("South Asian Metal");
 INSERT INTO Genre (name) VALUES ("Southern Gospel");
 INSERT INTO Genre (name) VALUES ("Southern Hip Hop");
 INSERT INTO Genre (name) VALUES ("Southern Rock");
@@ -1216,6 +1218,7 @@ INSERT INTO Genre (name) VALUES ("Spanish Reggae");
 INSERT INTO Genre (name) VALUES ("Speed Garage");
 INSERT INTO Genre (name) VALUES ("Speed Metal");
 INSERT INTO Genre (name) VALUES ("Speedcore");
+INSERT INTO Genre (name) VALUES ("Speed Up Brasileiro");
 INSERT INTO Genre (name) VALUES ("Spoken Word");
 INSERT INTO Genre (name) VALUES ("Spytrack");
 INSERT INTO Genre (name) VALUES ("Steampunk");
