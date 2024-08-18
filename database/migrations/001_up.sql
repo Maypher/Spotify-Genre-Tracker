@@ -904,6 +904,7 @@ INSERT INTO Genre (name) VALUES ("Modern Country Rock");
 INSERT INTO Genre (name) VALUES ("Modern Downshift");
 INSERT INTO Genre (name) VALUES ("Modern Free Jazz");
 INSERT INTO Genre (name) VALUES ("Modern Performance");
+INSERT INTO Genre (name) VALUES ("Modern Rock");
 INSERT INTO Genre (name) VALUES ("Modern Southern Rock");
 INSERT INTO Genre (name) VALUES ("Modern Uplift");
 INSERT INTO Genre (name) VALUES ("Monastic");
