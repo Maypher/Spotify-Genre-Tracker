@@ -177,6 +177,9 @@ class DatabaseManager:
 
     def get_genre_count(self) -> int:
         return self.cursor.execute("SELECT COUNT(*) FROM GENRE").fetchone()[0]
+    
+    def get_all_genres(self) -> List[GenreEntry]:
+        return self.cursor.execute("SELECT * FROM Genre").fetchall()
 
     def get_genre_by_id(self, id: int) -> GenreEntry:
         return self.cursor.execute(f"SELECT * FROM Genre WHERE id = {id}").fetchone()
