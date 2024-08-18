@@ -116,12 +116,14 @@ class Program:
 
         menu.add_row("1", "View progress", "Displays the progress of all genres.")
         menu.add_row("2", "View genre(s) progress", "Displays the progress of the genres that match the given query.")
-        menu.add_row("3", "Logout", "Logs out by removing the credentials of the authenticated user.")
-        menu.add_row("4", "Quit", "Terminates the program.")
+        menu.add_row("3", "View genres", "Displays all the genres stored in the database.")
+        menu.add_row("4", "Random genre", "Recommends a random genre to listen to.")
+        menu.add_row("5", "Logout", "Logs out by removing the credentials of the authenticated user.")
+        menu.add_row("6", "Quit", "Terminates the program.")
 
         self.console.print(menu)
 
-        option = IntPrompt.ask(choices=["1", "2", "3", "4"])
+        option = IntPrompt.ask(choices=["1", "2", "3", "4", "5", "6"])
 
         match option:
             case 1:
@@ -132,9 +134,14 @@ class Program:
                 # View a specific genre's progress
                 self.view_genre_progress()
             case 3:
+                # Display all genres
+                self.view_all_genres()
+            case 4:
+                self.random_genre()
+            case 5:
                 # Logout
                 self.backend.authenticator.logout()
-            case 4:
+            case 6:
                 # Quit
                 self.finish = True
 
@@ -145,8 +152,8 @@ class Program:
         with DatabaseManager() as db:
             genres = list(filter(lambda genre: genre[2] > 0, db.get_genres_by_name(genre)))
 
-        if not genre:
-            self.console.print(f"No genre with name {genre} has progress.", style=self.SUCCESS_STYLE)
+        if not genres:
+            self.console.print(f"No genre with name [bold]{genre}[/bold] has progress.", style=self.SUCCESS_STYLE)
             return
 
         page = 0
@@ -209,7 +216,45 @@ class Program:
                     break
 
             self.console.line()
-            
+
+    def view_all_genres(self):
+        # Load all genres with progress
+        genres = None
+        with DatabaseManager() as db:
+            genres = db.get_all_genres()
+
+        page = 0
+        items_per_page = 10
+        final_page = math.ceil(len(genres) / items_per_page)
+        
+        while True:
+            # Display the progress bar of those genres in chunks of 10
+            progress = self._create_progress_bar_for_genres(genres[page*items_per_page: page*items_per_page + items_per_page])
+        
+            self.console.print(progress)
+            # Show page progress
+            self.console.print(f"Page {page + 1}/{final_page}")
+
+            option = Prompt.ask("Previous/Next/Back", choices=["P", "N", "B"])
+
+            match option:
+                case "P":
+                    page = max(0, page - 1)
+                case "N":
+                    page = min(page + 1, final_page - 1)
+                case "B":
+                    break
+
+            self.console.line()
+
+    def random_genre(self):
+        genre = None
+
+        with DatabaseManager() as db:
+            genre = db.get_random_genre()
+        
+        self.console.print(f"What about listening to [bold]{genre[1]}[/bold]?", style=self.SUCCESS_STYLE)
+
     def print_spotify_logo(self):
         self.console.print("""
                             .:--======--:.                            
