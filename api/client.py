@@ -77,7 +77,7 @@ class Client:
             song = res_dict.get("item")
 
             # Don't keep track of anything that's not a song (podcasts and audio books)
-            if song.get("type") != "track":
+            if song is None or song.get("type") != "track":
                 return None
 
             artists = song.get("artists")
