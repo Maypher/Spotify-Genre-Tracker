@@ -51,7 +51,7 @@ class Program:
             except PermissionError as e:
                 self.console.print(e.args[0], style=self.ERROR_STYLE)
             except ConnectionError as e:
-                self.console.print(e.args[0].text, style=self.ERROR_STYLE)
+                self.console.print(e.args[0], style=self.ERROR_STYLE)
                 self.refresh_token = None
                 self.backend.authenticator.refresh_token = None
         
